@@ -23,6 +23,9 @@
 #define UNKNOWN 2
 #define DOT 1
 #define SOLID 0
+namespace Ui {
+class Dialog;
+}
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT
@@ -44,6 +47,7 @@ class MainWindow : public QMainWindow {
 	QLabel *widthLabel;
 	QLabel *heightLabel;
 	QPushButton *generate;
+    QPushButton *generate_specified;
 	QPushButton *surrender;
 	QSignalMapper *mapperLeftButton;
 	QSignalMapper *mapperRightButton;
@@ -55,8 +59,10 @@ class MainWindow : public QMainWindow {
 	int width, height, mouseButton;
 	bool firstClick, lockAction;
 	Nonogram *ngram;
-	void cleanUp();
-
+    void cleanUp();
+    QDialog * dialog;
+public:
+    Ui::Dialog * ui;
  public:
 	MainWindow(QWidget *parent = 0);
 	~MainWindow();
@@ -67,8 +73,10 @@ class MainWindow : public QMainWindow {
 	void solidClicked(int position);
 	void dotClicked(int position);
 	void checkSolution();
+    void call_named_puzzle();
 	void quit();
 	void help();
 	void about();
+
 };
 #endif

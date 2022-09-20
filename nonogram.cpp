@@ -7,7 +7,17 @@ if ((xAxis = (vector<size_t>**)malloc(width * sizeof(vector<size_t>*))) == NULL 
 	exit(1);
  }
 	generateField();
-	generatePuzzle();
+    generatePuzzle();
+}
+
+Nonogram::Nonogram(int w, int h, time_t num): width(w), height(h), solids(0), dots(0), field(new size_t[h]) {
+    if ((xAxis = (vector<size_t>**)malloc(width * sizeof(vector<size_t>*))) == NULL ||
+            (yAxis = (vector<size_t>**)malloc(height * sizeof(vector<size_t>*))) == NULL) {
+        cerr << "ERROR: Malloc failed." << endl;
+        exit(1);
+    }
+    generateField(num);
+    generatePuzzle();
 }
 
 Nonogram::~Nonogram() {
@@ -46,7 +56,14 @@ void Nonogram::print() {
 			}
 		}
 		cout << endl;
-	}
+    }
+}
+
+char *Nonogram::uniq_game_name()
+{
+    char* name = new char [100];
+    sprintf(name,"srand=%u,  width=%zu, height=%zu \n", unsigned(generated_time),width,height);
+    return name;
 }
 
 // Generates the puzzle (i.e. the numbers shown to the user) from the existing field.
@@ -94,36 +111,43 @@ void Nonogram::generatePuzzle() {
 
 // Generate a semi-random playing field.
 void Nonogram::generateField() {
-	int random, above, left;
-	size_t mask = 1 << (width - 1);
-	double prob;
-	srand(time(NULL));
-	for (size_t i = 0; i < height; ++i) {
-		field[i] = 0;
-		for (size_t j = mask; j > 0; j >>=1) {
-			if (i == 0) {
-				above = -1;
-			}
-			else {
-				above = ((field[i - 1] & j) > 0);
-			}
-			if (j == mask) {
-				left = -1;
-			}
-			else {
-				left = ((field[i] & (j << 1)) > 0);
-			}
-			prob = probability(above, left);
-			random = rand();
-			if (random > prob * RAND_MAX) {
-				++dots;
-			}
-			else {
-				field[i] |= j;
-				++solids;
-			}
-		}
-	}
+    generateField(time(NULL));
+
+}
+
+void Nonogram::generateField(time_t input)
+{
+    int random, above, left;
+    size_t mask = 1 << (width - 1);
+    double prob;
+
+    srand(generated_time=input);
+    for (size_t i = 0; i < height; ++i) {
+        field[i] = 0;
+        for (size_t j = mask; j > 0; j >>=1) {
+            if (i == 0) {
+                above = -1;
+            }
+            else {
+                above = ((field[i - 1] & j) > 0);
+            }
+            if (j == mask) {
+                left = -1;
+            }
+            else {
+                left = ((field[i] & (j << 1)) > 0);
+            }
+            prob = probability(above, left);
+            random = rand();
+            if (random > prob * RAND_MAX) {
+                ++dots;
+            }
+            else {
+                field[i] |= j;
+                ++solids;
+            }
+        }
+    }
 }
 
 /* Calculates the probability for the next block being black.

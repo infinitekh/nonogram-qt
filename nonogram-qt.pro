@@ -13,5 +13,8 @@ SOURCES += linesolver.cpp \
            nonogram.cpp \
            pushbutton.cpp \
            solver.cpp
-TRANSLATIONS += translations/nonogram_sv.ts translations/nonogram_fi.ts
+TRANSLATIONS += translations/nonogram_sv.ts translations/nonogram_fi.ts translations/nonogram_kr.ts
 RESOURCES += nonogram-qt.qrc
+
+FORMS += \
+    dialog.ui

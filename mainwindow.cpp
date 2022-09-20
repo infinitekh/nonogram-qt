@@ -1,6 +1,6 @@
 #include "mainwindow.h"
-
-MainWindow::MainWindow(QWidget *parent) {
+#include "ui_dialog.h"
+MainWindow::MainWindow(QWidget *parent)  {
 	window = new QWidget();
 	menu = new QMenuBar(window);
 	fileMenu = new QMenu(tr("&File"), window);
@@ -31,9 +31,11 @@ MainWindow::MainWindow(QWidget *parent) {
 	heightBox->setValue(DEFAULT_PUZZLE_SIZE);
 	widthLabel = new QLabel(tr("Columns:"), window);
 	heightLabel = new QLabel(tr("Rows:"), window);
-	generate = new QPushButton(tr("Generate puzzle"), this);
-	connect(generate, SIGNAL(clicked()), this, SLOT(generatePuzzle()));
-	surrender = new QPushButton(tr("Give up"), this);
+    generate = new QPushButton(tr("Generate puzzle(Random)"), this);
+    connect(generate, SIGNAL(clicked()), this, SLOT(generatePuzzle()));
+    generate_specified = new QPushButton(tr("Generate puzzle(Specified)"), this);
+    connect(generate_specified, SIGNAL(clicked()), this, SLOT(call_named_puzzle()));
+    surrender = new QPushButton(tr("Give up"), this);
 	connect(surrender, SIGNAL(clicked()), this, SLOT(giveUp()));
 	surrender->setEnabled(false);
 	ngram = NULL;
@@ -46,10 +48,14 @@ MainWindow::MainWindow(QWidget *parent) {
 	top->addWidget(widthLabel);
 	top->addWidget(widthBox);
 	top->addWidget(generate);
+    top->addWidget(generate_specified);
 	top->addWidget(surrender);
 	layout->addSpacing(20);
 	layout->addLayout(top);
 	layout->addLayout(grid);
+    dialog = new QDialog(this);
+    Ui::Dialog * ui = new Ui::Dialog;
+    ui->setupUi(dialog);
 }
 
 MainWindow::~MainWindow() {
@@ -275,7 +281,118 @@ void MainWindow::checkSolution() {
 	widthBox->setEnabled(true);
 	heightBox->setEnabled(true);
 	generate->setEnabled(true);
-	surrender->setEnabled(false);
+    surrender->setEnabled(false);
+}
+
+void MainWindow::call_named_puzzle()
+{
+    time_t time_a;
+    dialog->findChild<QSpinBox *>("puz_width")->setValue(width);
+        dialog->findChild<QSpinBox *>("puz_height")->setValue(height);
+    if ( QDialog::Rejected == dialog->exec()) {
+       return;
+    }
+    width = dialog->findChild<QSpinBox *>("puz_width")->value();
+    height = dialog->findChild<QSpinBox *>("puz_height")->value();
+    time_a = dialog->findChild<QSpinBox *>("puz_num")->value();
+
+    int pos, spacer_x, spacer_y;
+    // Start by disabling the buttons, so the user can't mess things up, as
+    // generating the puzzle can take some time. (Especially the big ones.)
+    widthBox->setEnabled(false);
+    heightBox->setEnabled(false);
+    generate->setEnabled(false);
+    // If this isn't the first puzzle generated, we need to clean out the garbage.
+    // ngram will be a NULL pointer the first time, but defined on subsequent calls.
+    if (ngram) {
+        cleanUp();
+    }
+    widthBox->setValue(width);
+    heightBox->setValue(height);
+    // We need to map the clicks and right clicks to the respective methods.
+    // Using mappers allows us to easily identify the button that sent the signal.
+    mapperLeftButton = new QSignalMapper(this);
+    mapperRightButton = new QSignalMapper(this);
+    ngram = new Nonogram(width, height,time_a);
+    xAxisClue = ngram->getXAxis();
+    yAxisClue = ngram->getYAxis();
+    Solver *solv = new Solver(width, height, xAxisClue, yAxisClue);
+    // Retry puzzle creation until we get a solvable one.
+    while (!solv->solve()) {
+        delete solv;
+        delete ngram;
+        ngram = new Nonogram(width, height);
+        xAxisClue = ngram->getXAxis();
+        yAxisClue = ngram->getYAxis();
+        solv = new Solver(width, height, xAxisClue, yAxisClue);
+    }
+    delete solv;
+    // Create and add the clue labels
+    spacer_x = 0;
+    spacer_y = 0;
+    for (int i = 0; i < width; ++i) {
+        QString str = "";
+        QString num = "";
+        for (int j = 0; j < xAxisClue[i]->size(); ++j) {
+            num.setNum(xAxisClue[i]->at(j), 10);
+            str.append(num);
+            if (j < xAxisClue[i]->size() - 1) {
+                str.append("\n");
+            }
+        }
+        xAxis.push_back(new QLabel(str));
+        xAxis.at(i)->setAlignment(Qt::AlignCenter | Qt::AlignBottom);
+        // We want to separate the UI buttons in 5 x 5 chunks, so that counting
+        // blocks becomes easier for the user.
+        if (i > 0 && i % 5 == 0) {
+            ++spacer_x;
+            grid->setColumnMinimumWidth(i + spacer_x, 2);
+        }
+        grid->addWidget(xAxis.at(i), 0, i + spacer_x + 1);
+    }
+    for (int i = 0; i < height; ++i) {
+        QString str = "";
+        QString num = "";
+        for (int j = 0; j < yAxisClue[i]->size(); ++j) {
+            num.setNum(yAxisClue[i]->at(j), 10);
+            str.append(num);
+            str.append("  ");
+        }
+        yAxis.push_back(new QLabel(str));
+        yAxis.at(i)->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        if (i > 0 && i % 5 == 0) {
+            ++spacer_y;
+            grid->setRowMinimumHeight(i + spacer_y, 2);
+        }
+        grid->addWidget(yAxis.at(i), i + spacer_y + 1, 0);
+    }
+    // Create the playing field itself.
+    spacer_y = 0;
+    for (int i = 0; i < height; ++i) {
+        if (i > 0 && i % 5 == 0) {
+            ++spacer_y;
+        }
+        spacer_x = 0;
+        for (int j = 0; j < width; ++j) {
+            if (j > 0 && j % 5 == 0) {
+                ++spacer_x;
+            }
+            pos = i * width + j;
+            status.push_back(UNKNOWN);
+            puzzle.push_back(new PushButton(&mouseButton, &firstClick));
+            puzzle.at(pos)->setStyle(style);
+            connect(puzzle.at(pos), SIGNAL(solid()), mapperLeftButton, SLOT(map()));
+            connect(puzzle.at(pos), SIGNAL(dot()), mapperRightButton, SLOT(map()));
+            connect(puzzle.at(pos), SIGNAL(released()), this, SLOT(checkSolution()));
+            mapperLeftButton->setMapping(puzzle.at(pos), pos);
+            mapperRightButton->setMapping(puzzle.at(pos), pos);
+            grid->addWidget(puzzle.at(pos), i + spacer_y + 1, j + spacer_x + 1);
+        }
+    }
+    connect(mapperLeftButton, SIGNAL(mapped(int)), this, SLOT(solidClicked(int)));
+    connect(mapperRightButton, SIGNAL(mapped(int)), this, SLOT(dotClicked(int)));
+    // Enable button that lets user see the solution without solving
+    surrender->setEnabled(true);
 }
 
 void MainWindow::about() {
