@@ -11,6 +11,7 @@
 #include <QSpinBox>
 #include <QMessageBox>
 #include <QCommonStyle>
+#include <QScrollArea>
 #include <QSignalMapper>
 #include <QString>
 #include <vector>
@@ -18,7 +19,7 @@
 #include "nonogram.h"
 
 #define MIN_PUZZLE_SIZE 3
-#define MAX_PUZZLE_SIZE 30
+#define MAX_PUZZLE_SIZE 50
 #define DEFAULT_PUZZLE_SIZE 10
 #define UNKNOWN 2
 #define DOT 1
@@ -41,7 +42,7 @@ class MainWindow : public QMainWindow {
 	QSpinBox *widthBox;
 	QSpinBox *heightBox;
 	QVBoxLayout *layout;
-	QHBoxLayout *top;
+    QHBoxLayout *top;
 	QGridLayout *grid;
 	QCommonStyle *style;
 	QLabel *widthLabel;
@@ -49,6 +50,7 @@ class MainWindow : public QMainWindow {
 	QPushButton *generate;
     QPushButton *generate_specified;
 	QPushButton *surrender;
+    QPushButton *swapButton;
 	QSignalMapper *mapperLeftButton;
 	QSignalMapper *mapperRightButton;
 	vector<PushButton*> puzzle;

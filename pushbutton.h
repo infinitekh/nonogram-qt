@@ -15,10 +15,11 @@ class PushButton : public QPushButton {
 	int *button;
 	bool *first;
 	bool processed;
-
+    bool mouseSwap=false;
  public:
 	PushButton(int *b, bool *f, QWidget *parent = 0);
-	
+public slots:
+    void setMouseSwap(bool);
  protected:
 	void dragEnterEvent(QDragEnterEvent *e);
 	void mousePressEvent(QMouseEvent *e);

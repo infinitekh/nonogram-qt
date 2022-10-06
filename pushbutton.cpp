@@ -1,4 +1,5 @@
 #include "pushbutton.h"
+#include <iostream>
 
 // button & first are pointers to the parent's variables. These are used to
 // convey information that the parent needs. "button" for which mouse button
@@ -9,7 +10,12 @@ PushButton::PushButton(int *b, bool *f, QWidget *parent) : button(b), first(f), 
 	setStyleSheet("background-color: rgb(215, 215, 215)");
 	setMinimumSize(SIZE, SIZE);
 	setMaximumSize(SIZE, SIZE);
-	processed = false;
+    processed = false;
+}
+
+void PushButton::setMouseSwap(bool tf)
+{
+    mouseSwap = tf;
 }
 
 void PushButton::mousePressEvent(QMouseEvent *e) {
@@ -18,11 +24,13 @@ void PushButton::mousePressEvent(QMouseEvent *e) {
 	}
 	*(button) = e->button();
 	*(first) = true;
-	processed = true;
-	if (e->button() == Qt::LeftButton) {
+    processed = true;
+    if ( (e->button() == Qt::LeftButton) ^ mouseSwap ) {
+//		std::cout << "emit solid" << std::endl;
 		emit solid();
 	}
 	else {
+//		std::cout << "emit dot" << std::endl;
 		emit dot();
 	}
 	// Qt will clean up the QDrag and associated QMimeData objects, so they mustn't be deleted.
@@ -39,7 +47,7 @@ void PushButton::dragEnterEvent(QDragEnterEvent *e) {
 		processed = false;
 		return;
 	}
-	if (*(button) == Qt::LeftButton) {
+    if (*(button) == Qt::LeftButton ^ mouseSwap) {
 		emit solid();
 	}
 	else {

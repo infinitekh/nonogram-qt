@@ -17,8 +17,10 @@ MainWindow::MainWindow(QWidget *parent)  {
 	helpMenu->addAction(helpAction);
 	helpMenu->addAction(aboutAction);
 	layout = new QVBoxLayout(window);
-	top = new QHBoxLayout(window);
-	top->setAlignment(Qt::AlignLeft);
+    top = new QHBoxLayout(window);
+    top->setAlignment(Qt::AlignLeft);
+    auto scroll = new QScrollArea;
+    scroll->setWidget(window);
 	grid = new QGridLayout(window);
 	grid->setSpacing(0);
 	grid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
@@ -31,16 +33,23 @@ MainWindow::MainWindow(QWidget *parent)  {
 	heightBox->setValue(DEFAULT_PUZZLE_SIZE);
 	widthLabel = new QLabel(tr("Columns:"), window);
 	heightLabel = new QLabel(tr("Rows:"), window);
-    generate = new QPushButton(tr("Generate puzzle(Random)"), this);
+    generate = new QPushButton(tr("Generate puzzle"), this);
     connect(generate, SIGNAL(clicked()), this, SLOT(generatePuzzle()));
-    generate_specified = new QPushButton(tr("Generate puzzle(Specified)"), this);
+    generate_specified = new QPushButton(tr("Make"), this);
     connect(generate_specified, SIGNAL(clicked()), this, SLOT(call_named_puzzle()));
     surrender = new QPushButton(tr("Give up"), this);
 	connect(surrender, SIGNAL(clicked()), this, SLOT(giveUp()));
 	surrender->setEnabled(false);
 	ngram = NULL;
 	lockAction = false;
-
+    swapButton = new QPushButton(tr("Function Swap"),this);
+    swapButton->setCheckable(true);
+    swapButton->setStyleSheet(" *::checked{"
+                              "background: #880000; "
+                              ""
+                              "}"
+                              "");
+    swapButton->setMinimumHeight(50);
 	window->setLayout(layout);
 	setCentralWidget(window);
 	top->addWidget(heightLabel);
@@ -51,8 +60,9 @@ MainWindow::MainWindow(QWidget *parent)  {
     top->addWidget(generate_specified);
 	top->addWidget(surrender);
 	layout->addSpacing(20);
-	layout->addLayout(top);
+    layout->addLayout(top);
 	layout->addLayout(grid);
+    layout->addWidget(swapButton);
     dialog = new QDialog(this);
     Ui::Dialog * ui = new Ui::Dialog;
     ui->setupUi(dialog);
@@ -76,6 +86,7 @@ void MainWindow::generatePuzzle() {
 	widthBox->setEnabled(false);
 	heightBox->setEnabled(false);
 	generate->setEnabled(false);
+    generate_specified->setEnabled(false);
 	// If this isn't the first puzzle generated, we need to clean out the garbage.
 	// ngram will be a NULL pointer the first time, but defined on subsequent calls.
 	if (ngram) {
@@ -158,13 +169,19 @@ void MainWindow::generatePuzzle() {
 			connect(puzzle.at(pos), SIGNAL(solid()), mapperLeftButton, SLOT(map()));
 			connect(puzzle.at(pos), SIGNAL(dot()), mapperRightButton, SLOT(map()));
 			connect(puzzle.at(pos), SIGNAL(released()), this, SLOT(checkSolution()));
+            connect(swapButton,SIGNAL(toggled(bool)),puzzle.at(pos),SLOT(setMouseSwap(bool)));
 			mapperLeftButton->setMapping(puzzle.at(pos), pos);
 			mapperRightButton->setMapping(puzzle.at(pos), pos);
 			grid->addWidget(puzzle.at(pos), i + spacer_y + 1, j + spacer_x + 1);
 		}
 	}
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
 	connect(mapperLeftButton, SIGNAL(mapped(int)), this, SLOT(solidClicked(int)));
 	connect(mapperRightButton, SIGNAL(mapped(int)), this, SLOT(dotClicked(int)));
+#else
+	connect(mapperLeftButton, &QSignalMapper::mappedInt,this,  &MainWindow::solidClicked);
+	connect(mapperRightButton, &QSignalMapper::mappedInt, this, &MainWindow::dotClicked);
+#endif
 	// Enable button that lets user see the solution without solving
 	surrender->setEnabled(true);
 }
@@ -173,7 +190,7 @@ void MainWindow::generatePuzzle() {
 void MainWindow::cleanUp() {
 	delete ngram;
 	ngram = NULL;
-	for (int i = 0; i < xAxis.size(); ++i) {
+        for (int i = 0; i < xAxis.size(); ++i) {
 		delete xAxis.at(i);
 	}
 	xAxis.clear();
@@ -181,7 +198,7 @@ void MainWindow::cleanUp() {
 		delete yAxis.at(i);
 	}
 	yAxis.clear();
-	for (int i = 0; i < width * height; ++i) {
+    for (int i = 0; i < puzzle.size(); ++i) {
 		delete puzzle.at(i);
 	}
 	puzzle.clear();
@@ -206,13 +223,15 @@ void MainWindow::giveUp() {
 				}
 			}
 			else if (ngram->getField()[i] & mask) {
-				puzzle.at(pos)->setStyleSheet("background-color: rgb(150, 150, 150)");
+                puzzle.at(pos)->setStyleSheet("background-color: rgb(150, 150, 150) ;"
+                                              "color : rgb(255,0,0)");
 			}
 		}
 	}
 	widthBox->setEnabled(true);
 	heightBox->setEnabled(true);
 	generate->setEnabled(true);
+    generate_specified->setEnabled(true);
 }
 
 // Called when a button is clicked or dragged over with button depressed.
@@ -231,7 +250,7 @@ void MainWindow::solidClicked(int position) {
 	else {
 		status.at(position) = SOLID;
 		puzzle.at(position)->setStyleSheet("background-color: rgb(50, 50, 50)");
-	}
+    }
 	firstClick = false;
 }
 
@@ -242,13 +261,14 @@ void MainWindow::dotClicked(int position) {
 			status.at(position) = UNKNOWN;
 			puzzle.at(position)->setText("");
 			puzzle.at(position)->setStyleSheet("background-color: rgb(215, 215, 215)");
-			lockAction = true;
+            lockAction = true;
 		}
 	}
 	else {
 		status.at(position) = DOT;
 		puzzle.at(position)->setText("X");
-		puzzle.at(position)->setStyleSheet("background-color: rgb(215, 215, 215)");
+        puzzle.at(position)->setStyleSheet("background-color: rgb(215, 215, 215);"
+                                           "color: black");
 	}
 	firstClick = false;
 }
@@ -280,18 +300,22 @@ void MainWindow::checkSolution() {
 	mb.exec();
 	widthBox->setEnabled(true);
 	heightBox->setEnabled(true);
-	generate->setEnabled(true);
+    generate->setEnabled(true);
+    generate_specified->setEnabled(true);
     surrender->setEnabled(false);
 }
 
 void MainWindow::call_named_puzzle()
 {
+
     time_t time_a;
     dialog->findChild<QSpinBox *>("puz_width")->setValue(width);
-        dialog->findChild<QSpinBox *>("puz_height")->setValue(height);
+    dialog->findChild<QSpinBox *>("puz_height")->setValue(height);
     if ( QDialog::Rejected == dialog->exec()) {
        return;
     }
+
+
     width = dialog->findChild<QSpinBox *>("puz_width")->value();
     height = dialog->findChild<QSpinBox *>("puz_height")->value();
     time_a = dialog->findChild<QSpinBox *>("puz_num")->value();
@@ -302,6 +326,7 @@ void MainWindow::call_named_puzzle()
     widthBox->setEnabled(false);
     heightBox->setEnabled(false);
     generate->setEnabled(false);
+    generate_specified->setEnabled(false);
     // If this isn't the first puzzle generated, we need to clean out the garbage.
     // ngram will be a NULL pointer the first time, but defined on subsequent calls.
     if (ngram) {
@@ -389,8 +414,13 @@ void MainWindow::call_named_puzzle()
             grid->addWidget(puzzle.at(pos), i + spacer_y + 1, j + spacer_x + 1);
         }
     }
-    connect(mapperLeftButton, SIGNAL(mapped(int)), this, SLOT(solidClicked(int)));
-    connect(mapperRightButton, SIGNAL(mapped(int)), this, SLOT(dotClicked(int)));
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
+	connect(mapperLeftButton, SIGNAL(mapped(int)), this, SLOT(solidClicked(int)));
+	connect(mapperRightButton, SIGNAL(mapped(int)), this, SLOT(dotClicked(int)));
+#else
+	connect(mapperLeftButton, &QSignalMapper::mappedInt,this,  &MainWindow::solidClicked);
+	connect(mapperRightButton, &QSignalMapper::mappedInt, this, &MainWindow::dotClicked);
+#endif
     // Enable button that lets user see the solution without solving
     surrender->setEnabled(true);
 }

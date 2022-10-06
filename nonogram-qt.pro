@@ -2,7 +2,7 @@ TEMPLATE = app
 TARGET = nonogram-qt
 DEPENDPATH += .
 INCLUDEPATH += .
-QT += core gui
+QT += core gui widgets
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 # Input
@@ -13,8 +13,9 @@ SOURCES += linesolver.cpp \
            nonogram.cpp \
            pushbutton.cpp \
            solver.cpp
-TRANSLATIONS += translations/nonogram_sv.ts translations/nonogram_fi.ts translations/nonogram_kr.ts
+TRANSLATIONS += translations/nonogram_sv.ts translations/nonogram_fi.ts translations/nonogram_ko.ts
 RESOURCES += nonogram-qt.qrc
 
 FORMS += \
     dialog.ui
+CONFIG+=lrelease
